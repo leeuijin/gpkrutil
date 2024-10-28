@@ -3,10 +3,14 @@
 - gpexpand 수행시(증설시)에 gpseg0의 카탈로그를 tar으로 묶어서 신규 세그먼트로 보내기 때문에 사이즈를 줄임.
 - gpexpand 수행시점에 vacuum full이 오래 걸리는 경우, timeout으로 에러 발생할 수 있기 때문에 사전 수행 필요
 
-2. standby master 사전 삭제
+2.gpexpand 작업 전 gpcheckcat 사전 수행
+- 실제 카탈로그 정보와 세그먼트간 데이터 파일의 맵핑 정보가 불일치 할 경우 검증 및 정리가 필요한 경우 일치화 작업 도는 삭제
+- gpcheckcat -O
+
+3. standby master 사전 삭제
 - 스탠바이 마스터가 존재하면서 세그먼트 증설할 경우 에러 발생, (스탠바이 마스터는 제일 마지막 dbid를 가짐)
 
-3. 불필요한 로그나 파일 삭제
+4. 불필요한 로그나 파일 삭제
   - gpexpand를 수행하게 되면, gpseg0을 tar로 묶어서 다른 서버로 전송하기 때문에 불필요한 DB로그를 삭제하면 용량을 줄일 수 있어 작업 시간을 줄일 수 있음.
   master의 DB로그로 불필요한 파일이 있으면 삭제 필요
    /tmp 영역, 마스터 노드 또는 세그먼트 0번 노드 
@@ -14,14 +18,14 @@
   ==> 마스터노드의 /tmp 영역이 부족할 경우, 신규 세그먼트 이미지 tar 경로 변경 옵션 적용
     $ gpexpand -t Full경로 (Greenplum. 신규 세그먼트 이미지 tar 경로)
 
-4. temp 스키마 삭제. 
+5. temp 스키마 삭제. 
    - Greenplum Restart 하면 temp 스키마 삭제 됨. 
    - temp 스키마 확인 alias. : ts (https://github.com/gpdbkr/gpkrutil/blob/main/gpkrutil_path.sh 참조)
 
-5. 재분산 할 때 Restricted. Mode로 하면 절대 안됨. 
+6. 재분산 할 때 Restricted. Mode로 하면 절대 안됨. 
    --> 리벨런싱 수행시 에러 발생    
 
-6. gpexpand 작업시 에러 조치 
+7. gpexpand 작업시 에러 조치 
   1) 리벨렁싱시 파일없거나 디렉토리가 없을 경우 
       - 에러 메시지 
         error 'ERROR:  could not open file "base/xxxxx/t_xxxx”: No such file or directory  (seg$num $ip:$port $pid)
@@ -61,7 +65,10 @@
         alter table edu_sch.lineitem  EXPAND TABLE;
       - 이슈 발생시 수행 커멘드
         ALTER TABLE edu_sch.orders EXPAND PARTITION PREPARE;          --root 파티션에 커멘드 수행
-        ALTER TABLE edu_sch.orders_1_prt_p202201 EXPAND EXPAND TABLE; --수작업 또는 개별 파티션에서는 gpexpand를 다시 수행        
+        ALTER TABLE edu_sch.orders_1_prt_p202201 EXPAND EXPAND TABLE; --수작업 또는 개별 파티션에서는 gpexpand를 다시 수행
+
+  5) gpexand 1단계 작업 중 오브젝트 별 사이즈를 산정하는 단계에 많은 시간을 소모하는 경우 수동으로 사이즈 계산을 SKIP 하고 진행 할 수 있음
+     gpexpand script에서 cte_sql 변수 주석 처리 
 
 ############### Greenplum 6.19. 미만의 gpexpand 방식 ###########
 1.Greenplum 6.19.0까지의 gpexpand 방식
